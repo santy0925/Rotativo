@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gestor de Equipos FLYR</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+      min-height: 100vh;
+      padding: 20px;
+      position: relative;
+      overflow-x: auto;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="rgba(255,255,255,0.1)"/><circle cx="75" cy="75" r="1" fill="rgba(255,255,255,0.05)"/><circle cx="50" cy="10" r="0.5" fill="rgba(255,255,255,0.08)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 24px;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,255,255,0.1);
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 40px 30px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    header::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+      animation: shimmer 3s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+      0%, 100% { transform: rotate(0deg); }
+      50% { transform: rotate(180deg); }
+    }
+
+    header h1 {
+      font-size: 3em;
+      margin-bottom: 10px;
+      font-weight: 700;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+      position: relative;
+      z-index: 1;
+    }
+
+    .form-section {
+      background: linear-gradient(135deg, rgba(248,249,250,0.9) 0%, rgba(233,236,239,0.8) 100%);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 35px;
+      margin: 30px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+      border: 1px solid rgba(255,255,255,0.2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .form-section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+      border-radius: 20px 20px 0 0;
+    }
+
+    .form-section h2 {
+      font-size: 2.2em;
+      color: #2d3748;
+      font-weight: 700;
+      margin-bottom: 25px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr auto;
+      gap: 20px;
+      align-items: end;
+      margin-bottom: 20px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 15px 20px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      font-size: 1.1em;
+      transition: all 0.3s ease;
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(5px);
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 15px 30px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 1.1em;
+      font-weight: 600;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+      border: 1px solid rgba(255,255,255,0.2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+
+    .btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn:hover::before {
+      left: 100%;
+    }
+
+    .btn:active {
+      transform: translateY(-1px);
+    }
+
+    .btn-rotate {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-rotate:hover {
+      box-shadow: 0 15px 35px rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-delete {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      box-shadow: 0 6px 15px rgba(239, 68, 68, 0.3);
+      padding: 8px 16px;
+      font-size: 0.9em;
+    }
+
+    .btn-delete:hover {
+      box-shadow: 0 10px 25px rgba(239, 68, 68, 0.4);
+    }
+
+    .btn-view {
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      box-shadow: 0 6px 15px rgba(59, 130, 246, 0.3);
+      padding: 8px 16px;
+      font-size: 0.9em;
+    }
+
+    .btn-view:hover {
+      box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4);
+    }
+
+    .table-section {
+      margin: 30px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 35px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+      border: 1px solid rgba(255,255,255,0.2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .table-section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+      border-radius: 20px 20px 0 0;
+    }
+
+    .table-section h2 {
+      font-size: 2.2em;
+      color: #2d3748;
+      font-weight: 700;
+      margin-bottom: 25px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(255,255,255,0.9);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    }
+
+    thead {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    th {
+      padding: 20px 15px;
+      text-align: left;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 0.95em;
+    }
+
+    td {
+      padding: 18px 15px;
+      border-bottom: 1px solid #e2e8f0;
+      color: #4a5568;
+      font-weight: 500;
+    }
+
+    tbody tr {
+      transition: background-color 0.3s ease;
+    }
+
+    tbody tr:hover {
+      background-color: rgba(102, 126, 234, 0.05);
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .list-section {
+      margin: 30px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 35px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+      border: 1px solid rgba(255,255,255,0.2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .list-section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+      border-radius: 20px 20px 0 0;
+    }
+
+    .list-section h2 {
+      font-size: 2.2em;
+      color: #2d3748;
+      font-weight: 700;
+      margin-bottom: 25px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    #ul-integrantes {
+      list-style: none;
+      padding: 0;
+    }
+
+    #ul-integrantes li {
+      background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+      padding: 15px 20px;
+      margin: 10px 0;
+      border-radius: 12px;
+      font-weight: 600;
+      color: #065f46;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+      transition: transform 0.2s ease;
+      border-left: 4px solid #10b981;
+    }
+
+    #ul-integrantes li:hover {
+      transform: translateX(5px);
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+
+      header h1 {
+        font-size: 2em;
+      }
+
+      .form-section, .table-section, .list-section {
+        margin: 15px;
+        padding: 20px;
+      }
+
+      .form-section h2, .table-section h2, .list-section h2 {
+        font-size: 1.8em;
+      }
+
+      table {
+        font-size: 0.9em;
+      }
+
+      th, td {
+        padding: 12px 8px;
+      }
+
+      .action-buttons {
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      .btn {
+        padding: 12px 20px;
+        font-size: 1em;
+      }
+    }
+
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 25px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      border-radius: 12px;
+      box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+      opacity: 0;
+      transition: all 0.3s ease;
+      transform: translateY(-10px);
+      z-index: 2000;
+      font-weight: 600;
+    }
+
+    .notification.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .notification.error {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      box-shadow: 0 8px 25px rgba(239, 68, 68, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Gestor de Equipos FLYR</h1>
+    </header>
+
+    <!-- Formulario para agregar equipos -->
+    <section class="form-section">
+      <h2>Agregar equipo</h2>
+      <div class="form-row">
+        <input type="text" id="equipo-nombre" placeholder="Nombre del equipo" required>
+        <input type="number" id="equipo-tamano" placeholder="Tamaño" required min="1">
+        <input type="number" id="equipo-dias" placeholder="Días por semana" required min="1" max="5">
+        <button id="btn-agregar-equipo" class="btn">Agregar equipo</button>
+      </div>
+    </section>
+
+    <!-- Botón para rotar equipos -->
+    <section class="form-section">
+      <h2>Rotación de equipos</h2>
+      <button id="btn-rotar-equipos" class="btn btn-rotate">Rotar equipos</button>
+    </section>
+
+    <!-- Lista de equipos -->
+    <section class="table-section">
+      <h2>Equipos registrados</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Tamaño</th>
+            <th>Días/sem</th>
+            <th>Días asignados</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-equipos"></tbody>
+      </table>
+    </section>
+
+    <!-- Formulario para agregar integrantes -->
+    <section class="form-section">
+      <h2>Agregar integrante</h2>
+      <div class="form-row">
+        <input type="number" id="integrante-team-id" placeholder="ID del equipo" required min="1">
+        <input type="text" id="integrante-nombre" placeholder="Nombre del integrante" required>
+        <span></span>
+        <button id="btn-agregar-integrante" class="btn">Agregar integrante</button>
+      </div>
+    </section>
+
+    <!-- Lista de integrantes -->
+    <section class="list-section">
+      <h2>Integrantes</h2>
+      <ul id="ul-integrantes"></ul>
+    </section>
+  </div>
+
+  <!-- Notificación -->
+  <div id="notification" class="notification"></div>
+
+  <!-- Librería Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    // =======================
+    // Conexión a Supabase
+    // =======================
+    const SUPABASE_URL = "https://gfyuavrtiwvxmzmvorhi.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmeXVhdnJ0aXd2eG16bXZvcmhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwMDQxNjIsImV4cCI6MjA3MDU4MDE2Mn0.7frMsWy2fB1sB4rfZjsHS2zVWaeDG2Nd2X05Aj8vs3g";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // =======================
+    // Días de la semana
+    // =======================
+    const WEEK_DAYS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+
+    // =======================
+    // Sistema de notificaciones
+    // =======================
+    function showNotification(message, type = 'success') {
+      const notification = document.getElementById('notification');
+      notification.textContent = message;
+      notification.className = `notification ${type}`;
+      notification.classList.add('show');
+      
+      setTimeout(() => {
+        notification.classList.remove('show');
+      }, 3000);
+    }
+
+    // =======================
+    // Funciones para TEAMS
+    // =======================
+    async function insertarEquipo(name, size, daysPerWeek) {
+      try {
+        const assignedDays = calcularDiasInicial(daysPerWeek);
+
+        const { error } = await supabaseClient
+          .from("teams")
+          .insert([{ name, size, days_per_week: daysPerWeek, assigned_days: assignedDays }]);
+
+        if (error) {
+          showNotification("Error insertando equipo: " + error.message, 'error');
+        } else {
+          showNotification("Equipo agregado exitosamente");
+          listarEquipos();
+          // Limpiar formulario
+          document.getElementById("equipo-nombre").value = "";
+          document.getElementById("equipo-tamano").value = "";
+          document.getElementById("equipo-dias").value = "";
+        }
+      } catch (error) {
+        showNotification("Error inesperado: " + error.message, 'error');
+      }
+    }
+
+    async function eliminarEquipo(teamId) {
+      if (!confirm("¿Estás seguro de que deseas eliminar este equipo? Esta acción también eliminará todos sus integrantes.")) {
+        return;
+      }
+
+      try {
+        // Primero eliminar todos los integrantes del equipo
+        const { error: membersError } = await supabaseClient
+          .from("members")
+          .delete()
+          .eq("team_id", teamId);
+
+        if (membersError) {
+          showNotification("Error eliminando integrantes: " + membersError.message, 'error');
+          return;
+        }
+
+        // Luego eliminar el equipo
+        const { error: teamError } = await supabaseClient
+          .from("teams")
+          .delete()
+          .eq("id", teamId);
+
+        if (teamError) {
+          showNotification("Error eliminando equipo: " + teamError.message, 'error');
+        } else {
+          showNotification("Equipo eliminado exitosamente");
+          listarEquipos();
+          // Limpiar lista de integrantes si estaba mostrando integrantes del equipo eliminado
+          document.getElementById("ul-integrantes").innerHTML = "";
+        }
+      } catch (error) {
+        showNotification("Error inesperado: " + error.message, 'error');
+      }
+    }
+
+    async function listarEquipos() {
+      try {
+        const { data, error } = await supabaseClient
+          .from("teams")
+          .select("*")
+          .order("id");
+
+        if (error) {
+          console.error("Error listando equipos:", error);
+          showNotification("Error cargando equipos: " + error.message, 'error');
+          return;
+        }
+
+        const tbody = document.getElementById("tabla-equipos");
+        tbody.innerHTML = "";
+        
+        if (data.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="6" style="text-align: center; padding: 30px; color: #6b7280; font-style: italic;">
+                No hay equipos registrados
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        data.forEach(team => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${team.id}</td>
+            <td><strong>${team.name}</strong></td>
+            <td>${team.size}</td>
+            <td>${team.days_per_week || ""}</td>
+            <td>${team.assigned_days ? team.assigned_days.join(", ") : ""}</td>
+            <td>
+              <div class="action-buttons">
+                <button onclick="listarIntegrantes(${team.id})" class="btn btn-view">Ver</button>
+                <button onclick="eliminarEquipo(${team.id})" class="btn btn-delete">Eliminar</button>
+              </div>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (error) {
+        showNotification("Error inesperado: " + error.message, 'error');
+      }
+    }
+
+    // =======================
+    // Rotar equipos
+    // =======================
+    async function rotarEquipos() {
+      try {
+        const { data: equipos, error } = await supabaseClient
+          .from("teams")
+          .select("*");
+
+        if (error) {
+          console.error("Error obteniendo equipos:", error);
+          showNotification("Error obteniendo equipos: " + error.message, 'error');
+          return;
+        }
+
+        if (equipos.length === 0) {
+          showNotification("No hay equipos para rotar", 'error');
+          return;
+        }
+
+        let equiposRotados = 0;
+        for (const equipo of equipos) {
+          if (!equipo.days_per_week) continue;
+
+          const nuevosDias = rotarDias(equipo.assigned_days, equipo.days_per_week);
+
+          await supabaseClient
+            .from("teams")
+            .update({ assigned_days: nuevosDias })
+            .eq("id", equipo.id);
+          
+          equiposRotados++;
+        }
+
+        listarEquipos();
+        showNotification(`Rotación completada: ${equiposRotados} equipos rotados`);
+      } catch (error) {
+        showNotification("Error durante la rotación: " + error.message, 'error');
+      }
+    }
+
+    // =======================
+    // Funciones para MEMBERS
+    // =======================
+    async function insertarIntegrante(teamId, name) {
+      try {
+        // Verificar que el equipo existe
+        const { data: team, error: teamError } = await supabaseClient
+          .from("teams")
+          .select("*")
+          .eq("id", teamId)
+          .single();
+
+        if (teamError || !team) {
+          showNotification("El equipo con ID " + teamId + " no existe", 'error');
+          return;
+        }
+
+        const { error } = await supabaseClient
+          .from("members")
+          .insert([{ team_id: teamId, name }]);
+
+        if (error) {
+          showNotification("Error insertando integrante: " + error.message, 'error');
+        } else {
+          showNotification(`Integrante agregado al equipo "${team.name}"`);
+          listarIntegrantes(teamId);
+          // Limpiar formulario
+          document.getElementById("integrante-team-id").value = "";
+          document.getElementById("integrante-nombre").value = "";
+        }
+      } catch (error) {
+        showNotification("Error inesperado: " + error.message, 'error');
+      }
+    }
+
+    async function listarIntegrantes(teamId) {
+      try {
+        // Obtener información del equipo
+        const { data: team, error: teamError } = await supabaseClient
+          .from("teams")
+          .select("*")
+          .eq("id", teamId)
+          .single();
+
+        if (teamError) {
+          showNotification("Error obteniendo información del equipo: " + teamError.message, 'error');
+          return;
+        }
+
+        const { data, error } = await supabaseClient
+          .from("members")
+          .select("*")
+          .eq("team_id", teamId);
+
+        if (error) {
+          console.error("Error listando integrantes:", error);
+          showNotification("Error cargando integrantes: " + error.message, 'error');
+          return;
+        }
+
+        const ul = document.getElementById("ul-integrantes");
+        ul.innerHTML = "";
+        
+        // Agregar título con nombre del equipo
+        const titleLi = document.createElement("li");
+        titleLi.innerHTML = `<strong>Integrantes del equipo: ${team.name}</strong>`;
+        titleLi.style.background = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)";
+        titleLi.style.color = "white";
+        titleLi.style.borderLeft = "4px solid #4c51bf";
+        ul.appendChild(titleLi);
+
+        if (data.length === 0) {
+          const emptyLi = document.createElement("li");
+          emptyLi.textContent = "Este equipo no tiene integrantes registrados";
+          emptyLi.style.background = "#f3f4f6";
+          emptyLi.style.color = "#6b7280";
+          emptyLi.style.fontStyle = "italic";
+          emptyLi.style.borderLeft = "4px solid #d1d5db";
+          ul.appendChild(emptyLi);
+          return;
+        }
+
+        data.forEach(member => {
+          const li = document.createElement("li");
+          li.textContent = member.name;
+          ul.appendChild(li);
+        });
+      } catch (error) {
+        showNotification("Error inesperado: " + error.message, 'error');
+      }
+    }
+
+    // =======================
+    // Lógica de asignación y rotación
+    // =======================
+    function calcularDiasInicial(daysPerWeek) {
+      if (daysPerWeek < 1 || daysPerWeek > 5) {
+        return [];
+      }
+      return WEEK_DAYS.slice(0, daysPerWeek);
+    }
+
+    function rotarDias(diasActuales, daysPerWeek) {
+      if (daysPerWeek < 1 || daysPerWeek > 5) {
+        return diasActuales;
+      }
+
+      if (!diasActuales || diasActuales.length === 0) {
+        return calcularDiasInicial(daysPerWeek);
+      }
+
+      let startIndex = WEEK_DAYS.indexOf(diasActuales[0]);
+      if (startIndex === -1) startIndex = 0; // fallback si no encuentra el día
+      
+      let newStartIndex = (startIndex + 1) % WEEK_DAYS.length;
+
+      let nuevosDias = [];
+      for (let i = 0; i < daysPerWeek; i++) {
+        nuevosDias.push(WEEK_DAYS[(newStartIndex + i) % WEEK_DAYS.length]);
+      }
+      return nuevosDias;
+    }
+
+    // =======================
+    // Eventos
+    // =======================
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("btn-agregar-equipo").addEventListener("click", () => {
+        const nombre = document.getElementById("equipo-nombre").value.trim();
+        const tamano = parseInt(document.getElementById("equipo-tamano").value);
+        const diasSemana = parseInt(document.getElementById("equipo-dias").value);
+
+        if (!nombre) {
+          showNotification("El nombre del equipo es requerido", 'error');
+          return;
+        }
+
+        if (!tamano || tamano < 1) {
+          showNotification("El tamaño del equipo debe ser mayor a 0", 'error');
+          return;
+        }
+
+        if (!diasSemana || diasSemana < 1 || diasSemana > 5) {
+          showNotification("Los días por semana deben estar entre 1 y 5", 'error');
+          return;
+        }
+
+        insertarEquipo(nombre, tamano, diasSemana);
+      });
+
+      document.getElementById("btn-agregar-integrante").addEventListener("click", () => {
+        const teamId = parseInt(document.getElementById("integrante-team-id").value);
+        const nombre = document.getElementById("integrante-nombre").value.trim();
+
+        if (!teamId || teamId < 1) {
+          showNotification("El ID del equipo es requerido y debe ser mayor a 0", 'error');
+          return;
+        }
+
+        if (!nombre) {
+          showNotification("El nombre del integrante es requerido", 'error');
+          return;
+        }
+
+        insertarIntegrante(teamId, nombre);
+      });
+
+      document.getElementById("btn-rotar-equipos").addEventListener("click", rotarEquipos);
+
+      // Cargar equipos al inicio
+      listarEquipos();
+
+      // Agregar validación en tiempo real para los campos numéricos
+      document.getElementById("equipo-tamano").addEventListener("input", function() {
+        if (this.value < 1) this.value = 1;
+      });
+
+      document.getElementById("equipo-dias").addEventListener("input", function() {
+        if (this.value < 1) this.value = 1;
+        if (this.value > 5) this.value = 5;
+      });
+
+      document.getElementById("integrante-team-id").addEventListener("input", function() {
+        if (this.value < 1) this.value = 1;
+      });
+
+      // Permitir agregar equipos con Enter
+      document.getElementById("equipo-nombre").addEventListener("keypress", function(e) {
+        if (e.key === "Enter") {
+          document.getElementById("btn-agregar-equipo").click();
+        }
+      });
+
+      document.getElementById("equipo-tamano").addEventListener("keypress", function(e) {
+        if (e.key === "Enter") {
+          document.getElementById("btn-agregar-equipo").click();
+        }
+      });
+
+      document.getElementById("equipo-dias").addEventListener("keypress", function(e) {
+        if (e.key === "Enter") {
+          document.getElementById("btn-agregar-equipo").click();
+        }
+      });
+
+      // Permitir agregar integrantes con Enter
+      document.getElementById("integrante-team-id").addEventListener("keypress", function(e) {
+        if (e.key === "Enter") {
+          document.getElementById("btn-agregar-integrante").click();
+        }
+      });
+
+      document.getElementById("integrante-nombre").addEventListener("keypress", function(e) {
+        if (e.key === "Enter") {
+          document.getElementById("btn-agregar-integrante").click();
+        }
+      });
+    });
+
+    // =======================
+    // Funciones globales para el HTML
+    // =======================
+    window.insertarEquipo = insertarEquipo;
+    window.insertarIntegrante = insertarIntegrante;
+    window.listarIntegrantes = listarIntegrantes;
+    window.eliminarEquipo = eliminarEquipo;
+    window.rotarEquipos = rotarEquipos;
+  </script>
+</body>
+</html>
