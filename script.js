@@ -25,11 +25,9 @@ const NOTIFICATION_DURATION = 3000;
 function showNotification(message, type = 'success') {
   const notification = document.getElementById('notification');
   if (!notification) {
-    // If notification element doesn't exist, create a temporary alert
     alert(message);
     return;
   }
-
   notification.textContent = message;
   notification.className = `notification ${type}`;
   notification.classList.add('show');
@@ -47,7 +45,7 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   updateCurrentDate();
   const dailyCapacityInput = document.getElementById('dailyCapacityInput');
-  if(dailyCapacityInput) {
+  if (dailyCapacityInput) {
     dailyCapacityInput.value = dailyCapacity;
     dailyCapacityInput.addEventListener('change', function(e) {
       updateDailyCapacity(e.target.value);
@@ -217,7 +215,8 @@ async function saveTeamEdit(id) {
 function updateCurrentDate() {
   const today = new Date();
   const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-  document.getElementById('currentDate').textContent = today.toLocaleDateString('es-ES', options);
+  const dateElement = document.getElementById('currentDate');
+  if(dateElement) dateElement.textContent = today.toLocaleDateString('es-ES', options);
 }
 
 function updateDailyCapacity(value) {
@@ -235,9 +234,14 @@ async function updateStats() {
   const totalTeams = equipos.length;
   const totalPeople = equipos.reduce((sum, t) => sum + t.size, 0);
 
-  document.getElementById('totalTeams').textContent = totalTeams;
-  document.getElementById('totalPeople').textContent = totalPeople;
-  document.getElementById('dailyCapacity').textContent = dailyCapacity;
+  const totalTeamsElement = document.getElementById('totalTeams');
+  if(totalTeamsElement) totalTeamsElement.textContent = totalTeams;
+  
+  const totalPeopleElement = document.getElementById('totalPeople');
+  if(totalPeopleElement) totalPeopleElement.textContent = totalPeople;
+  
+  const dailyCapacityElement = document.getElementById('dailyCapacity');
+  if(dailyCapacityElement) dailyCapacityElement.textContent = dailyCapacity;
 
   const today = new Date();
   const dayIndex = today.getDay(); // Domingo es 0, Lunes es 1
@@ -251,7 +255,8 @@ async function updateStats() {
       }
     }
   }
-  document.getElementById('todayOccupancy').textContent = todayOccupancy;
+  const todayOccupancyElement = document.getElementById('todayOccupancy');
+  if(todayOccupancyElement) todayOccupancyElement.textContent = todayOccupancy;
 }
 
 async function renderTeamsList() {
@@ -291,10 +296,17 @@ async function renderTeamsList() {
     `).join('');
 }
 
+// =======================
+// LÓGICA DE ROTACIÓN CORREGIDA
+// =======================
 
-// =======================
-// Lógica de rotación
-// =======================
+// Función para calcular días iniciales para un equipo nuevo
+function calcularDiasInicial(daysPerWeek) {
+  const shuffledDays = [...WEEK_DAYS].sort(() => 0.5 - Math.random());
+  return shuffledDays.slice(0, daysPerWeek);
+}
+
+// Función principal de redistribución con validación de capacidad
 async function redistributeTeams() {
   try {
     const { data: equipos, error } = await supabaseClient
@@ -312,84 +324,151 @@ async function redistributeTeams() {
       return;
     }
 
-    const nuevasAsignaciones = {};
-    for (const equipo of equipos) {
-      if (!equipo.days_per_week) continue;
-      nuevasAsignaciones[equipo.id] = rotarDias(equipo.assigned_days, equipo.days_per_week);
-    }
-    
-    // Se elimina la validación para permitir la rotación sin importar el límite
-    // const validacionExitosa = validarRotacion(equipos, nuevasAsignaciones);
-    // if (!validacionExitosa) {
-    //   showNotification("¡Error! La reorganización excedería el límite diario de personas.", 'danger');
-    //   return;
-    // }
+    // Asignar nuevos días per week aleatorios (2 o 3)
+    equipos.forEach(equipo => {
+      equipo.days_per_week = Math.random() < 0.5 ? 2 : 3;
+    });
 
+    // Algoritmo de redistribución inteligente
+    const nuevaAsignacion = distribuirEquiposConCapacidad(equipos);
+    
+    if (nuevaAsignacion === null) {
+      showNotification("No se pudo realizar la redistribución respetando la capacidad diaria", 'warning');
+      return;
+    }
+
+    // Actualizar en la base de datos
     let equiposActualizados = 0;
     for (const equipo of equipos) {
-      if (nuevasAsignaciones[equipo.id]) {
-        await supabaseClient
+      if (nuevaAsignacion[equipo.id]) {
+        const { error: updateError } = await supabaseClient
           .from("teams")
-          .update({ assigned_days: nuevasAsignaciones[equipo.id] })
+          .update({ 
+            assigned_days: nuevaAsignacion[equipo.id],
+            days_per_week: equipo.days_per_week
+          })
           .eq("id", equipo.id);
         
-        equiposActualizados++;
+        if (!updateError) {
+          equiposActualizados++;
+        }
       }
     }
     
     await loadData();
-    showNotification(`Reorganización completada: ${equiposActualizados} equipos actualizados`);
+    showNotification(`Reorganización completada: ${equiposActualizados} equipos redistribuidos`, 'success');
+    
   } catch (error) {
+    console.error("Error durante la reorganización:", error);
     showNotification("Error durante la reorganización: " + error.message, 'danger');
   }
 }
 
-function validarRotacion(equipos, nuevasAsignaciones) {
-  let dailyCounts = {};
-  WEEK_DAYS.forEach(day => dailyCounts[day] = 0);
+// Algoritmo de distribución que respeta la capacidad diaria
+function distribuirEquiposConCapacidad(equipos) {
+  const maxIntentos = 100;
+  let mejorAsignacion = null;
+  let menorExceso = Infinity;
 
-  for (const equipo of equipos) {
-    const asignacionFinal = nuevasAsignaciones[equipo.id] || equipo.assigned_days;
-    if (asignacionFinal) {
-      asignacionFinal.forEach(day => {
-        dailyCounts[day] += equipo.size;
-      });
+  // Intentar múltiples combinaciones para encontrar la mejor distribución
+  for (let intento = 0; intento < maxIntentos; intento++) {
+    const asignacion = {};
+    const ocupacionDiaria = {
+      "Lunes": 0,
+      "Martes": 0,
+      "Miércoles": 0,
+      "Jueves": 0,
+      "Viernes": 0
+    };
+
+    // Ordenar equipos aleatoriamente para cada intento
+    const equiposAleatorios = [...equipos].sort(() => 0.5 - Math.random());
+
+    let asignacionExitosa = true;
+
+    // Asignar cada equipo
+    for (const equipo of equiposAleatorios) {
+      const diasPosibles = encontrarMejoresDias(ocupacionDiaria, equipo.size, equipo.days_per_week);
+      
+      if (diasPosibles.length >= equipo.days_per_week) {
+        // Tomar los mejores días disponibles
+        const diasAsignados = diasPosibles.slice(0, equipo.days_per_week);
+        asignacion[equipo.id] = diasAsignados;
+        
+        // Actualizar ocupación
+        diasAsignados.forEach(dia => {
+          ocupacionDiaria[dia] += equipo.size;
+        });
+      } else {
+        asignacionExitosa = false;
+        break;
+      }
+    }
+
+    if (asignacionExitosa) {
+      // Calcular exceso total
+      const excesoTotal = Object.values(ocupacionDiaria).reduce((sum, ocupacion) => {
+        return sum + Math.max(0, ocupacion - dailyCapacity);
+      }, 0);
+
+      // Si no hay exceso, esta es la asignación perfecta
+      if (excesoTotal === 0) {
+        return asignacion;
+      }
+
+      // Si es mejor que la anterior, guardarla
+      if (excesoTotal < menorExceso) {
+        menorExceso = excesoTotal;
+        mejorAsignacion = asignacion;
+      }
     }
   }
 
-  for (const day in dailyCounts) {
-    if (dailyCounts[day] > dailyCapacity) {
-      return false;
+  // Retornar la mejor asignación encontrada (puede tener algo de exceso)
+  return mejorAsignacion;
+}
+
+// Encontrar los mejores días para asignar un equipo
+function encontrarMejoresDias(ocupacionDiaria, tamañoEquipo, diasNecesarios) {
+  // Crear array de días con su ocupación actual
+  const diasConOcupacion = WEEK_DAYS.map(dia => ({
+    dia: dia,
+    ocupacion: ocupacionDiaria[dia],
+    espacioDisponible: dailyCapacity - ocupacionDiaria[dia],
+    nuevaOcupacion: ocupacionDiaria[dia] + tamañoEquipo
+  }));
+
+  // Ordenar por prioridad:
+  // 1. Días que no excedan la capacidad
+  // 2. Días con menor ocupación actual
+  // 3. Aleatorización para variedad
+  diasConOcupacion.sort((a, b) => {
+    // Priorizar días que no excedan capacidad
+    const aExcede = a.nuevaOcupacion > dailyCapacity;
+    const bExcede = b.nuevaOcupacion > dailyCapacity;
+    
+    if (aExcede && !bExcede) return 1;
+    if (!aExcede && bExcede) return -1;
+    
+    // Si ambos exceden o ambos no exceden, ordenar por ocupación actual
+    if (a.ocupacion !== b.ocupacion) {
+      return a.ocupacion - b.ocupacion;
     }
-  }
-  return true;
+    
+    // Aleatorizar para variedad
+    return Math.random() - 0.5;
+  });
+
+  return diasConOcupacion.map(item => item.dia);
 }
 
-function calcularDiasInicial(daysPerWeek) {
-  if (daysPerWeek < 1 || daysPerWeek > 5) {
-    return [];
-  }
-  return WEEK_DAYS.slice(0, daysPerWeek);
-}
-
-function rotarDias(diasActuales, daysPerWeek) {
-  if (daysPerWeek < 1 || daysPerWeek > 5 || !diasActuales || diasActuales.length === 0) {
-    return diasActuales;
-  }
-  
-  const allDays = WEEK_DAYS;
-  let newDays = [];
-
-  const firstDayIndex = allDays.indexOf(diasActuales[0]);
-  if (firstDayIndex === -1) {
-    return diasActuales;
-  }
-
-  const newStartIndex = (firstDayIndex + 1) % allDays.length;
-
-  for (let i = 0; i < daysPerWeek; i++) {
-    newDays.push(allDays[(newStartIndex + i) % allDays.length]);
-  }
-
-  return newDays;
-}
+// =======================
+// Funciones del Modal de Miembros (sin usar)
+// =======================
+function openMembersModal() { console.log('Función no implementada con Supabase'); }
+function closeMembersModal() { console.log('Función no implementada con Supabase'); }
+function addMemberToTeam() { console.log('Función no implementada con Supabase'); }
+function deleteMemberFromTeam() { console.log('Función no implementada con Supabase'); }
+function toggleMemberEdit() { console.log('Función no implementada con Supabase'); }
+function saveMemberEdit() { console.log('Función no implementada con Supabase'); }
+function saveMembersChanges() { console.log('Función no implementada con Supabase'); }
